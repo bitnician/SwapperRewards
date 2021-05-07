@@ -8,51 +8,51 @@ import './libraries/SafeMath.sol';
 /**
  * @title TraderRewards
  * @notice This contract handles the rewards paid to traders ("swappers").
- * Traders receive a set number of SPH tokens per trade as a reward. Rewards are accumulated. Traders can claim rewards by withddrawing them.
+ * Traders receive a set number of TEST tokens per trade as a reward. Rewards are accumulated. Traders can claim rewards by withddrawing them.
  */
 contract TraderRewards is Ownable {
     using SafeMath for uint;
     
-
-    IERC20 public sphToken;
+    //address of our test token
+    IERC20 public testToken;
     address public router;
     uint public divisor; // e.g.  50000000 (1e7)
     uint public rewardTokensRemaining; //contains initial and remaining value e.g. 100000000000000000000000000 (1e26)  
 
 
-    //Keeps track of each trader's balance of SPH reward tokens
+    //Keeps track of each trader's balance of TEST reward tokens
     mapping (address => uint) public rewardTokenBalances;
 
 
 
     //Events
-    event LogCreated(address indexed createdBy, address indexed sphToken, address indexed routerAddress, uint rewardDivisor, uint initialRewardTokens);
+    event LogCreated(address indexed createdBy, address indexed testToken, address indexed routerAddress, uint rewardDivisor, uint initialRewardTokens);
     event LogSetRouter(address indexed setBy, address indexed oldAddress, address indexed newAddress);
-    event LogSetSphToken(address indexed setBy, address indexed oldAddress, address indexed newAddress);
+    event LogSetTestToken(address indexed setBy, address indexed oldAddress, address indexed newAddress);
     event LogSetDivisor(address indexed setBy, uint oldDivisor, uint newDivisor);
     event LogSetRewardTokensRemaining(address indexed setBy, uint oldValue, uint newValue);
-    event LogSafeSPHTransfer(address indexed to, uint amount);
+    event LogSafeTESTTransfer(address indexed to, uint amount);
     event LogWithdrawal(address indexed withdrawnBy, uint amount);
     event LogRecordTrade(address indexed trader, uint allocatedRewardTokens);
  
 
     /** 
      * @notice Construct TraderRewards contract
-     * @param sphTokenAddress Address of the SPH token contract so it can be cast to IERC20 and used by this contract
+     * @param testTokenAddress Address of the TEST token contract so it can be cast to IERC20 and used by this contract
      * @param routerAddress UniswapV2Router02 address
      * @param rewardDivisor The divisor to use when calculating rewards
-     * @param initialRewardTokens The initial number of SPH tokens available to be allocated to traders as rewards
+     * @param initialRewardTokens The initial number of TEST tokens available to be allocated to traders as rewards
     */
-    constructor(address sphTokenAddress, address routerAddress, uint rewardDivisor, uint initialRewardTokens) public {
-        require(sphTokenAddress != address(0), "TraderRewards::constructor: token address is the zero address");
+    constructor(address testTokenAddress, address routerAddress, uint rewardDivisor, uint initialRewardTokens) public {
+        require(testTokenAddress != address(0), "TraderRewards::constructor: token address is the zero address");
         require(routerAddress != address(0), "TraderRewards::constructor: router address is the zero address");
         require(rewardDivisor > 0, "TraderRewards::constructor: divisor out of range");
         require(initialRewardTokens > 0, "TraderRewards::constructor: initialRewardTokens out of range");
         router = routerAddress;
-        sphToken = IERC20(sphTokenAddress);
+        testToken = IERC20(testTokenAddress);
         divisor = rewardDivisor;
         rewardTokensRemaining = initialRewardTokens;  
-        emit LogCreated(msg.sender, sphTokenAddress, routerAddress, rewardDivisor, initialRewardTokens);
+        emit LogCreated(msg.sender, testTokenAddress, routerAddress, rewardDivisor, initialRewardTokens);
     }
 
     /**
@@ -86,27 +86,27 @@ contract TraderRewards is Ownable {
 
 
     /** 
-     * @notice Allows caller to  withdraw all his/her SPH reward tokens
+     * @notice Allows caller to  withdraw all his/her Test reward tokens
     */
     function withdrawRewardTokens() public {
         uint amount = rewardTokenBalances[msg.sender];
         require(amount > 0, "TraderRewards::withdrawRewardTokens: no rewards available for withdrawal");
         rewardTokenBalances[msg.sender] = 0;
-        (bool success, uint amountTransferred) = safeSPHTransfer(msg.sender, amount);
+        (bool success, uint amountTransferred) = safeTESTTransfer(msg.sender, amount);
         require(success, "TraderRewards::withdrawRewardTokens: transfer unsuccessful");
         emit LogWithdrawal(msg.sender, amountTransferred);
     }
 
      /**
-     * @notice Sets the SPH token contract address. Only callable by the owner
-     * @dev Can be used to reset the SPH token address in case it is redployed.
-     * @param sphTokenAddress SPH token contract address
+     * @notice Sets the TEST token contract address. Only callable by the owner
+     * @dev Can be used to reset the TEST token address in case it is redployed.
+     * @param testTokenAddress TEST token contract address
      */
-    function setSphToken(address sphTokenAddress) public onlyOwner {
-        require(sphTokenAddress != address(0), "TraderRewards::setSphToken: token address is the zero address");
-        address currentSphToken = address(sphToken);
-        sphToken = IERC20(sphTokenAddress);
-        emit LogSetSphToken(msg.sender, currentSphToken, sphTokenAddress);
+    function setTestToken(address testTokenAddress) public onlyOwner {
+        require(testTokenAddress != address(0), "TraderRewards::setTESTToken: token address is the zero address");
+        address currentTestToken = address(testToken);
+        testToken = IERC20(testTokenAddress);
+        emit LogSetTestToken(msg.sender, currentTestToken, testTokenAddress);
     }
 
     /**
@@ -144,24 +144,24 @@ contract TraderRewards is Ownable {
     }
 
     /**
-     * @notice Safe SPH reward token transfer function.
-     * @dev  First checks total supply of SPH tokens available to reward
+     * @notice Safe TEST reward token transfer function.
+     * @dev  First checks total supply of TEST tokens available to reward
      * @param to Address to which tokens will be transferred
      * @param amount Number of tokens to be transferred
      * @return success Success indicator
      * @return amountTransferred The actual amount transferred
      */
-    function safeSPHTransfer(address to, uint256 amount) internal returns (bool success, uint amountTransferred){
-        uint256 sphBal = sphToken.balanceOf(address(this));
-        require(sphBal > 0, "TraderRewards:safeSPHTransfer:  no SPH tokens available to reward");
-        if (amount > sphBal) {
-            amountTransferred = sphBal;
-            success = sphToken.transfer(to, sphBal);
-            emit LogSafeSPHTransfer(to, sphBal);
+    function safeTESTTransfer(address to, uint256 amount) internal returns (bool success, uint amountTransferred){
+        uint256 testBal = testToken.balanceOf(address(this));
+        require(testBal > 0, "TraderRewards:safeTESTTransfer:  no test tokens available to reward");
+        if (amount > testBal) {
+            amountTransferred = testBal;
+            success = testToken.transfer(to, testBal);
+            emit LogSafeTESTTransfer(to, testBal);
         } else {
             amountTransferred = amount;
-            success = sphToken.transfer(to, amount);
-            emit LogSafeSPHTransfer(to, amount);
+            success = testToken.transfer(to, amount);
+            emit LogSafeTESTTransfer(to, amount);
         }
     }
 
